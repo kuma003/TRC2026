@@ -24,7 +24,7 @@ import sys
 # 定数　上書きしない
 MAG_CONST = 8.9  # 地磁気補正用の偏角
 CALIBRATION_MILLITIME = 20 * 1000
-TARGET_LAT = 38.26075383333333 #Goal座標
+TARGET_LAT = 38.26075383333333  # Goal座標
 TARGET_LNG = 140.85376366666668
 TARGET_ALTITUDE = 20
 DATA_SAMPLING_RATE = 0.00001
@@ -71,7 +71,7 @@ bmx = BNO055.BNO055()
 bmp = BMP085.BMP085()
 
 nowTime = datetime.datetime.now()
-fileName = "./log/testlog_" + nowTime.strftime("%Y-%m%d-%H%M%S") + ".csv"
+fileName = "./log/testlog_" + nowTime.strftime(format="%Y-%m%d-%H%M%S") + ".csv"
 
 
 def main():
@@ -121,7 +121,7 @@ def main():
 
         elif phase == 2:  # キャリブレーション
             print("phase2 : calibration start")
-            #calibration()
+            # calibration()
             phase = 3
 
         elif phase == 3:
@@ -241,7 +241,7 @@ def Setup():
                 "Direction",
                 "Fall",
                 "cone direction",
-                "cone probability"
+                "cone probability",
             ]
         )
 
@@ -277,7 +277,7 @@ def getBmxData():  # get BMX data
     # mag[1] = mag[1]
     # mag[2] = mag[2]
     fall = math.sqrt(acc[0] * acc[0] + acc[1] * acc[1] + acc[2] * acc[2])
-    #for i in range(3):
+    # for i in range(3):
     #    mag[i] = (mag[i] - calibBias[i]) / calibRange[i]
 
 
@@ -326,10 +326,10 @@ def calibration():  # calibrate BMX raw data
     mag = bmx.getMag()
     max[0] = mag[0]
     max[1] = mag[1]
-    #max[2] = mag[2]
+    # max[2] = mag[2]
     min[0] = mag[0]
     min[1] = mag[1]
-    #min[2] = mag[2]
+    # min[2] = mag[2]
 
     complete = False
     while complete == False:
@@ -358,52 +358,24 @@ def calibration():  # calibrate BMX raw data
             print("calibBias", calibBias, "calibRange", calibRange)
             time.sleep(1)
 
-
-def calcdistance():  # 距離計算用関
+def calcDistanceAngle():  # 距離・角度計算関数
     global distance
-    EARTH_RADIUS = 6378136.59
-    dx = (math.pi / 180) * EARTH_RADIUS * (TARGET_LNG - lng)
-    dy = (math.pi / 180) * EARTH_RADIUS * (TARGET_LAT - lat)
-    distance = math.sqrt(dx * dx + dy * dy)
-    # print(f"distance: {distance}")
-
-
-def calcAngle():  # 角度計算用関数 : north=0 east=90 west = -90
     global angle
-    forEAstAngle = 0.0
-    EARTH_RADIUS = 6378136.59
 
-    dx = (math.pi / 180) * EARTH_RADIUS * (TARGET_LNG - lng)
-    dy = (math.pi / 180) * EARTH_RADIUS * (TARGET_LAT - lat)
+    EARTH_RADIUS = 6378137.0
+    dx = math.radians(TARGET_LNG - lng) * EARTH_RADIUS * math.cos(math.radians(TARGET_LAT))
+    dy = math.radians(TARGET_LAT - lat) * EARTH_RADIUS
+    distance = math.hypot(dx, dy)
     angle = 90 - math.degrees(math.atan2(dy, dx))
     angle %= 360.0
-    # if dx == 0 and dy == 0:
-    #    forEastAngle = 0.0
-    # else:
-    #    forEastAngle = (180 / math.pi) * math.atan2(dy, dx)  # arctan
-    # angle = forEastAngle - 90
-    # if angle < -180:
-    #    angle += 360
-    # if angle > 180:
-    #    angle -= 360
-    # angle = -angle
-    # print(f"angle: {angle}")
 
 
 def calcAzimuth():  # 方位角計算用関数
     global azimuth
 
     azimuth = 90 - math.degrees(math.atan2(mag[1], mag[0]))
-    azimuth *= -1
-    azimuth % 360  # 上のazimuthはCanSatからみた北の方位
-    # print(f"azimuth: {azimuth}")
-    # if mag[1] == 0.0:
-    #     mag[1] = 0.0000001
-    # azimuth = -(180 / math.pi) * math.atan(mag[2] / mag[1])
-    # if mag[1] > 0:
-    #     azimuth = 90 + azimuth
-    # elif mag[1] < 0:
-    #     azimuth = -90 + azimuth
+    azimuth *= -1 # 上のazimuthはCanSatからみた北の方位
+    azimuth %= 360
 
 
 def GPS_thread():  # GPSモジュールを読み、GPSオブジェクトを更新する
@@ -422,11 +394,7 @@ def GPS_thread():  # GPSモジュールを読み、GPSオブジェクトを更�
             s.reset_input_buffer()
         if sentence[0] != "$":  # 先頭が'$'でなければ捨てる
             continue
-        for (
-            x
-        ) in (
-            sentence
-        ):  # 読んだ文字列を解析してGPSオブジェクトにデーターを追加、更新する
+        for x in sentence:  # 読んだ文字列を解析してGPSオブジェクトにデーターを追加、更新する
             gps.update(x)
         lat = gps.latitude[0]
         lng = gps.longitude[0]
@@ -435,8 +403,6 @@ def GPS_thread():  # GPSモジュールを読み、GPSオブジェクトを更�
             gps_detect = 1
         elif lat == 0.0:
             gps_detect = 0
-        # print(lat)
-        # print(lng)
 
 
 def cone_detect():
@@ -451,17 +417,14 @@ def cone_detect():
     except:
         cone_direction = 0.5
         cone_probability = 10
-#    print("direction",130.960084 cone_direction)
-#    print("prob.", cone_probability)
 
 
 def setData_thread():
     while True:
         getBmxData()
-        calcAngle()
+        calcDistanceAngle()
         calcAzimuth()
         set_direction()
-        calcdistance()
         with open(fileName, "a", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(
@@ -486,7 +449,7 @@ def setData_thread():
                     direction,
                     fall,
                     cone_direction,
-                    cone_probability
+                    cone_probability,
                 ]
             )
         time.sleep(DATA_SAMPLING_RATE)
@@ -533,11 +496,6 @@ def moveMotor_thread():
             M1B_pwm.ChangeDutyCycle(0)
             M4A_pwm.ChangeDutyCycle(50)
             M4B_pwm.ChangeDutyCycle(0)
-        #elif direction == 700:  # back
-            #M1A_pwm.ChangeDutyCycle(0)
-            #M1B_pwm.ChangeDutyCycle(75)
-            #M4A_pwm.ChangeDutyCycle(0)
-            #M4B_pwm.ChangeDutyCycle(75)
         elif direction > 0.0 and direction <= 180.0:  # left
             M1A_pwm.ChangeDutyCycle(25)
             M1B_pwm.ChangeDutyCycle(0)
@@ -568,7 +526,7 @@ def set_direction():  # -180<direction<180  #rover move to right while direction
     elif phase == 3:
         direction = azimuth - angle
         direction %= 360
-        if (direction > 180):
+        if direction > 180:
             direction -= 360
         if abs(direction) < 5.0:
             direction = -360
@@ -595,8 +553,6 @@ def set_direction():  # -180<direction<180  #rover move to right while direction
         time.sleep(2)
         direction = -360
         time.sleep(2)
-        stuck_uss_Flag = 0
-        stuck_GPS_Flag = 0
     elif phase == -2:
         direction = 700
         time.sleep(3)
