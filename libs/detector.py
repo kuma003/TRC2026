@@ -24,18 +24,26 @@ class detector:
         self.is_reached = None
         self.picam2 = None  # camera obj.
 
+
     # 対象領域をセット
-    def set_roi_img(self, roi):
+    def set_roi_img(self):
         # 対象領域のヒストグラムをあらかじめ算出
-        self.__roi = roi
-        self.__roi_hsv = cv2.cvtColor(self.__roi, cv2.COLOR_BGR2HSV)
-        self.__roi_hist = cv2.calcHist(
-            [self.__roi_hsv], [0, 1], None, [180, 256], [0, 180, 0, 256]
-        )
+        rois = ["./libs/roi1.png", "./libs/roi2.png", "./libs/roi3.png"]
+        weights = [1, 1, 1] # normal, far, near(noisy)
+        roi_hsvs = [ cv2.cvtColor(cv2.imread(roi), cv2.COLOR_BGR2HSV) for roi in rois ]
+        self.__roi_hists = []
+        for roi_hsv, weight in zip(roi_hsvs, weights):
+            hist = cv2.calcHist(
+                [roi_hsv], [0, 1], None, [180, 256], [0, 180, 0, 256]
+            )
+            hist = hist * weight
+            self.__roi_hists.append(hist)
+    
 
     # コーンの縦横比 (横/縦) を設定
     def set_cone_ratio(self, ratio):
         self.cone_ratio = ratio
+
 
     # get camera img
     def __get_camera_img(self):
@@ -46,12 +54,14 @@ class detector:
             self.picam2.start()
         self.input_img = cv2.blur(self.picam2.capture_array(), (8, 8))
 
+
     # 検出
     def detect_cone(self):
         self.__get_camera_img()
         self.__back_projection()
         self.__binarization()
         self.__find_cone_centroid()
+
 
     # 逆投影法を用いて, 興味領域のヒストグラムにマッチする領域を抽出
     def __back_projection(self):
@@ -60,6 +70,7 @@ class detector:
         self.projected_img = cv2.calcBackProject(
             [img_hsv], [0, 1], self.__roi_hist, [0, 180, 0, 256], 1
         )
+
 
     # 二値化・モルフォロジー変換 (クロージング)
     # gray : 入力画像 (グレースケール)
@@ -70,6 +81,7 @@ class detector:
         self.binarized_img = cv2.morphologyEx(
             th, cv2.MORPH_DILATE, cv2.getStructuringElement(cv2.MORPH_RECT, (25, 25))
         )  # モルフォロジー変換
+
 
     # ラベリング処理によって, 特定の比の長方形 (i.e. カラーコーン) を探し, その重心と確からしさを返す
     # 確からしさ abs(長方形の縦横比 - コーンの縦横比) でとりあえず定義. 小さいほど良い
