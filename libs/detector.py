@@ -52,7 +52,7 @@ class detector:
 
             hist = cv2.calcHist(
                 images=[hsv],
-                channels=[0, 1],               # H,S
+                channels=[0, 1],  # H,S
                 mask=mask,
                 histSize=[h_bins, s_bins],
                 ranges=[0, 180, 0, 256],
@@ -67,14 +67,14 @@ class detector:
         # 混合確率の正規化
         mixed_sum = float(mixed.sum())
         if mixed_sum <= 0:
-            raise RuntimeError("Mixed histogram is empty. Check alpha masks / threshold.")
+            raise RuntimeError(
+                "Mixed histogram is empty. Check alpha masks / threshold."
+            )
         mixed /= mixed_sum
 
         # back projection用にスケールを整える（0..255）
         self.__roi_hist = mixed
         cv2.normalize(self.__roi_hist, self.__roi_hist, 0, 255, cv2.NORM_MINMAX)
-
-
 
     # コーンの縦横比 (横/縦) を設定
     def set_cone_ratio(self, ratio):
@@ -170,19 +170,6 @@ class detector:
 
         # 見つかったコーンの諸情報を入力
         self.occupancy = occupacies[idx_cone]
-        self.detected = stats[idx_cone, :]
-        self.centroids = centroids[idx_cone]
-        self.probability = probabilities[idx_cone]
-        self.cone_direction = (
-            self.centroids[0] / self.binarized_img.shape[1]
-        )  # right : 1, left : 0な領域を占めるなら
-                idx_cone = idx
-                self.is_reached = True
-                self.picam2.capture_file("./log/capture_img.png")
-        if not idx_cone > 0:  # もし見つからなかったら
-            self.is_reached = False
-            idx_cone = np.argmin(probabilities)  # 最も形の領域を探す
-        # 見つかったコーンの諸情報を入力
         self.detected = stats[idx_cone, :]
         self.centroids = centroids[idx_cone]
         self.probability = probabilities[idx_cone]
