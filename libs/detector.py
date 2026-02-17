@@ -24,26 +24,60 @@ class detector:
         self.is_reached = None
         self.picam2 = None  # camera obj.
 
-
-    # 対象領域をセット
     def set_roi_img(self):
-        # 対象領域のヒストグラムをあらかじめ算出
+        # ROI(透過PNG/RGBA)から、alphaマスクでコーン画素だけを使ってHSヒストを作り、混合する
         rois = ["./libs/roi1.png", "./libs/roi2.png", "./libs/roi3.png"]
-        weights = [1, 1, 1] # normal, far, near(noisy)
-        roi_hsvs = [ cv2.cvtColor(cv2.imread(roi), cv2.COLOR_BGR2HSV) for roi in rois ]
-        self.__roi_hists = []
-        for roi_hsv, weight in zip(roi_hsvs, weights):
+        weights = [1.0, 1.0, 1.0]  # normal, far, near(noisy) など。必要なら調整
+
+        alpha_thresh = 200  # 縁のアンチエイリアス混色を避けるなら高めが安定
+        h_bins, s_bins = 180, 256  # いまの実装に合わせる（重いなら下のNOTE参照）
+
+        mixed = np.zeros((h_bins, s_bins), np.float32)
+
+        for path, w in zip(rois, weights):
+            rgba = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+            if rgba is None:
+                raise FileNotFoundError(path)
+            if rgba.ndim != 3 or rgba.shape[2] != 4:
+                raise ValueError(f"ROI must be RGBA (HxWx4). got: shape={rgba.shape}")
+
+            # OpenCVのimreadはPNGをBGRAで読むので、BGRAとして扱うのが安全
+            bgr = cv2.cvtColor(rgba, cv2.COLOR_BGRA2BGR)
+            alpha = rgba[:, :, 3]
+
+            mask = (alpha >= alpha_thresh).astype(np.uint8) * 255
+
+            hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
+
             hist = cv2.calcHist(
-                [roi_hsv], [0, 1], None, [180, 256], [0, 180, 0, 256]
+                images=[hsv],
+                channels=[0, 1],  # H,S
+                mask=mask,
+                histSize=[h_bins, s_bins],
+                ranges=[0, 180, 0, 256],
+            ).astype(np.float32)
+
+            # 確率化（sum=1）してから混合（これやるとROIの面積差に引っ張られにくい）
+            s = float(hist.sum())
+            if s > 0:
+                hist /= s
+                mixed += float(w) * hist
+
+        # 混合確率の正規化
+        mixed_sum = float(mixed.sum())
+        if mixed_sum <= 0:
+            raise RuntimeError(
+                "Mixed histogram is empty. Check alpha masks / threshold."
             )
-            hist = hist * weight
-            self.__roi_hists.append(hist)
-    
+        mixed /= mixed_sum
+
+        # back projection用にスケールを整える（0..255）
+        self.__roi_hist = mixed
+        cv2.normalize(self.__roi_hist, self.__roi_hist, 0, 255, cv2.NORM_MINMAX)
 
     # コーンの縦横比 (横/縦) を設定
     def set_cone_ratio(self, ratio):
         self.cone_ratio = ratio
-
 
     # get camera img
     def __get_camera_img(self):
@@ -54,14 +88,12 @@ class detector:
             self.picam2.start()
         self.input_img = cv2.blur(self.picam2.capture_array(), (8, 8))
 
-
     # 検出
     def detect_cone(self):
         self.__get_camera_img()
         self.__back_projection()
         self.__binarization()
         self.__find_cone_centroid()
-
 
     # 逆投影法を用いて, 興味領域のヒストグラムにマッチする領域を抽出
     def __back_projection(self):
@@ -70,7 +102,6 @@ class detector:
         self.projected_img = cv2.calcBackProject(
             [img_hsv], [0, 1], self.__roi_hist, [0, 180, 0, 256], 1
         )
-
 
     # 二値化・モルフォロジー変換 (クロージング)
     # gray : 入力画像 (グレースケール)
@@ -81,7 +112,6 @@ class detector:
         self.binarized_img = cv2.morphologyEx(
             th, cv2.MORPH_DILATE, cv2.getStructuringElement(cv2.MORPH_RECT, (25, 25))
         )  # モルフォロジー変換
-
 
     # ラベリング処理によって, 特定の比の長方形 (i.e. カラーコーン) を探し, その重心と確からしさを返す
     # 確からしさ abs(長方形の縦横比 - コーンの縦横比) でとりあえず定義. 小さいほど良い
