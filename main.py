@@ -10,10 +10,10 @@ import cv2
 import RPi.GPIO as GPIO
 
 # import wiringpi as pi
-import BNO055
-import BMP085
-from micropyGPS import MicropyGPS
-import detect_corn as dc
+from libs import BNO055
+from libs import BMP085
+from libs.micropyGPS import MicropyGPS
+from libs import detect_corn as dc
 from picamera2 import Picamera2
 
 # import matplotlib.pyplot as plt
@@ -136,11 +136,6 @@ def main():
                 if distance < 1.0:
                     phase = 6  # goal
 
-            #            if upside_down == True:
-            #                phase = -2
-            # if distance < 1.0:  # GPS座標との距離 < m以内　　#スタック優先
-            #    phase = 6
-
         elif phase == 4:
             print("phase4 : camera start")
             cone_detect()
@@ -188,21 +183,6 @@ def main():
         elif phase == 6:
             print("phase6 : Goal")
             time.sleep(10000)
-        #         elif phase==-1:
-        #             print("phase-1 : stuck")
-        #             if object_distance_Flag ==0:
-        #                 phase = -1
-        #             elif object_distance_Flag == 1:
-        #                 phase = 3
-        #                 object_distance_Flag = 0
-        #         elif phase ==-2:
-        #             print("phase-2 : upside down")
-        #             if  upside_down_Flag == 0:
-        #                 phase = -2
-        #             elif upside_down_Flag == 1:
-        #                 phase = 3
-        #
-
         time.sleep(0.1)
 
 
@@ -258,10 +238,7 @@ def Setup():
     gpsThread.start()
 
     detector = dc.detector()
-    roi_img = cv2.imread("./log/captured.png")
-
-    roi_img = cv2.cvtColor(roi_img, cv2.COLOR_BGR2RGB)
-    detector.set_roi_img(roi_img)
+    detector.set_roi_img()
 
     print("Setup OK")
 
@@ -466,15 +443,15 @@ def moveMotor_thread():
     GPIO.setup(M4A, GPIO.OUT)
     GPIO.setup(M4B, GPIO.OUT)
 
-    M1A_pwm = GPIO.PWM(M1A, frequency)
-    M1B_pwm = GPIO.PWM(M1B, frequency)
-    M4A_pwm = GPIO.PWM(M4A, frequency)
-    M4B_pwm = GPIO.PWM(M4B, frequency)
+    motor_right_f = GPIO.PWM(M1A, frequency)
+    motor_right_b = GPIO.PWM(M1B, frequency)
+    motor_left_f = GPIO.PWM(M4A, frequency)
+    motor_left_b = GPIO.PWM(M4B, frequency)
 
-    M1A_pwm.start(0)
-    M1B_pwm.start(0)
-    M4A_pwm.start(0)
-    M4B_pwm.start(0)
+    motor_right_f.start(0)
+    motor_right_b.start(0)
+    motor_left_f.start(0)
+    motor_left_b.start(0)
 
     while True:
         if phase == 5:
@@ -482,30 +459,30 @@ def moveMotor_thread():
         else:  # camera mode
             slow = 1.0
         if direction == 360.0:  # stop
-            M1A_pwm.ChangeDutyCycle(0)
-            M1B_pwm.ChangeDutyCycle(0)
-            M4A_pwm.ChangeDutyCycle(0)
-            M4B_pwm.ChangeDutyCycle(0)
+            motor_right_f.ChangeDutyCycle(0)
+            motor_right_b.ChangeDutyCycle(0)
+            motor_left_f.ChangeDutyCycle(0)
+            motor_left_b.ChangeDutyCycle(0)
         elif direction == -360.0:  # forward
-            M1A_pwm.ChangeDutyCycle(40 * slow)
-            M1B_pwm.ChangeDutyCycle(0)
-            M4A_pwm.ChangeDutyCycle(40 * slow)
-            M4B_pwm.ChangeDutyCycle(0)
+            motor_right_f.ChangeDutyCycle(40 * slow)
+            motor_right_b.ChangeDutyCycle(0)
+            motor_left_f.ChangeDutyCycle(40 * slow)
+            motor_left_b.ChangeDutyCycle(0)
         elif direction == -400.0:  # rotate
-            M1A_pwm.ChangeDutyCycle(15)
-            M1B_pwm.ChangeDutyCycle(0)
-            M4A_pwm.ChangeDutyCycle(50)
-            M4B_pwm.ChangeDutyCycle(0)
+            motor_right_f.ChangeDutyCycle(15)
+            motor_right_b.ChangeDutyCycle(0)
+            motor_left_f.ChangeDutyCycle(50)
+            motor_left_b.ChangeDutyCycle(0)
         elif direction > 0.0 and direction <= 180.0:  # left
-            M1A_pwm.ChangeDutyCycle(25)
-            M1B_pwm.ChangeDutyCycle(0)
-            M4A_pwm.ChangeDutyCycle(15)
-            M4B_pwm.ChangeDutyCycle(0)
+            motor_right_f.ChangeDutyCycle(25)
+            motor_right_b.ChangeDutyCycle(0)
+            motor_left_f.ChangeDutyCycle(15)
+            motor_left_b.ChangeDutyCycle(0)
         elif direction < 0.0 and direction >= -180.0:  # right
-            M1A_pwm.ChangeDutyCycle(15)
-            M1B_pwm.ChangeDutyCycle(0)
-            M4A_pwm.ChangeDutyCycle(25)
-            M4B_pwm.ChangeDutyCycle(0)
+            motor_right_f.ChangeDutyCycle(15)
+            motor_right_b.ChangeDutyCycle(0)
+            motor_left_f.ChangeDutyCycle(25)
+            motor_left_b.ChangeDutyCycle(0)
 
 
 def set_direction():  # -180<direction<180  #rover move to right while direction > 0

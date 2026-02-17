@@ -1,13 +1,10 @@
-import detect_corn as dc
+from libs import detector as dc
 import cv2
 import time
 
 detector = dc.detector()
 
-roi_img = cv2.imread("./log/captured.png")
-roi_img = cv2.cvtColor(roi_img, cv2.COLOR_BGR2RGB)
-
-detector.set_roi_img(roi_img)
+detector.set_roi_img()
 
 try:
     while True:
