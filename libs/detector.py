@@ -12,6 +12,8 @@ class detector:
         # 諸変数のイニシャライズ
         self.cone_ratio = 33 / 70  # コーンの縦横比
         self.ratio_thresh = 0.1  # 許容される誤差率
+        
+        self.detect_cone_flag = True # whether to detect cone. if False, use lores for only parachute detection.
 
         self.input_img = None
         self.projected_img = None
@@ -24,6 +26,7 @@ class detector:
         self.is_detected = None
         self.is_reached = None
         self.picam2 = None  # camera obj.
+        
 
     def set_roi_img(self):
         # ROI(透過PNG/RGBA)から、alphaマスクでコーン画素だけを使ってHSヒストを作り、混合する
@@ -84,10 +87,18 @@ class detector:
     def __get_camera_img(self):
         if self.picam2 is None:
             self.picam2 = Picamera2()
-            cam_conf = self.picam2.create_preview_configuration()
+            cam_conf = self.picam2.create_preview_configuration(
+                main={"size": (640, 480), "format": "RGB888"}, # for precise cone detection
+                lores= {"size": (320, 240),  "format": "YUV420"}, # for parachute detection
+            ) # enforce 640x480 BGR format for OpenCV compatibility.
             self.picam2.configure(cam_conf)
             self.picam2.start()
-        self.input_img = cv2.blur(self.picam2.capture_array(), (8, 8))
+            print("camera configured")
+        
+        if self.detect_cone_flag:
+            self.input_img = cv2.blur(self.picam2.capture_array("main"), (8, 8))
+        else:
+            self.input_img = cv2.blur(self.picam2.capture_array("lores"), (8, 8))
 
     # 検出
     def detect_cone(self):
@@ -99,7 +110,6 @@ class detector:
     # 逆投影法を用いて, 興味領域のヒストグラムにマッチする領域を抽出
     def __back_projection(self):
         img_hsv = cv2.cvtColor(self.input_img, cv2.COLOR_BGR2HSV)
-        cv2.normalize(self.__roi_hist, self.__roi_hist, 0, 255, cv2.NORM_MINMAX)
         self.projected_img = cv2.calcBackProject(
             [img_hsv], [0, 1], self.__roi_hist, [0, 180, 0, 256], 1
         )
