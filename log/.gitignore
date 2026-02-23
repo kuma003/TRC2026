@@ -1,0 +1,3 @@
+# Ignore log files and captured images
+*.csv
+*.png
