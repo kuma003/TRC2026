@@ -192,9 +192,9 @@ async def async_main():
 
 if __name__ == "__main__":
     # GPSのスレッドの立ち上げ
-    #    gpsThread = threading.Thread(target=GPS_thread, args=())
-    #    gpsThread.daemon = True
-    #    gpsThread.start()
+    gpsThread = threading.Thread(target=GPS_thread, args=())
+    gpsThread.daemon = True
+    gpsThread.start()
 
     # 非同期I/O
     loop = asyncio.get_event_loop()

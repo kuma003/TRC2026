@@ -1,6 +1,5 @@
 import serial
 from libs import micropyGPS
-import micropyGPS
 import threading
 import time
 
