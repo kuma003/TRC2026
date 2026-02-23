@@ -24,8 +24,8 @@ import sys
 # 定数　上書きしない
 MAG_CONST = 8.9  # 地磁気補正用の偏角
 CALIBRATION_MILLITIME = 20 * 1000
-TARGET_LAT = 38.26075383333333  # Goal座標
-TARGET_LNG = 140.85376366666668
+TARGET_LAT = 38.260871333333334  # Goal座標
+TARGET_LNG = 140.85392616666667
 TARGET_ALTITUDE = 20
 DATA_SAMPLING_RATE = 0.00001
 ALTITUDE_CONST1 = 30
@@ -108,7 +108,7 @@ def main():
                     print("failed to detect falling")
                     break
                 # time.sleep(0.1)
-            phase = 1
+            phase = 3  # TODO: skip parachute separation. must be fixed later. change to phase 1 after test.
 
         elif phase == 1:  # パラ分離
             print("phase1 : remove para")
