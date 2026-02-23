@@ -34,10 +34,10 @@ HIGH = 1
 LOW = 0
 # Pin number
 heating_wire = 10
-M1A = 6  # Motor
-M1B = 5
-M4A = 13
-M4B = 19
+M1A = 13  # Motor
+M1B = 19
+M4A = 6
+M4B = 5
 
 
 # 変数
