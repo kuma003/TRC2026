@@ -13,7 +13,7 @@ import base64
 
 
 port = 8756
-SERVER_URL = "10.47.58.98"
+SERVER_URL = "10.156.221.98"
 URI = f"ws://{SERVER_URL}:{port}"
 TARGET_LAT = 38.266285
 TARGET_LNG = 140.855498
