@@ -7,17 +7,51 @@ from libs.micropyGPS import MicropyGPS
 import threading
 import json
 import time
+import os
+from pathlib import Path
 from libs import detector as dc
 import cv2
 import base64
 
 
-port = 8756
-SERVER_URL = "10.156.221.98"
-URI = f"ws://{SERVER_URL}:{port}"
-TARGET_LAT = 38.266285
-TARGET_LNG = 140.855498
-JPEG_QUALITY = 70  # 圧縮品質 (0-100)
+def load_env_file(env_path: Path) -> None:
+    if not env_path.exists():
+        print(f"env file not found: {env_path} (using defaults)")
+        return
+
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[len("export ") :].lstrip()
+        if "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if not key:
+            continue
+
+        if (value.startswith('"') and value.endswith('"')) or (
+            value.startswith("'") and value.endswith("'")
+        ):
+            value = value[1:-1]
+
+        os.environ.setdefault(key, value)
+
+
+ENV_PATH = Path(__file__).with_name("server.env")
+load_env_file(ENV_PATH)
+
+port = int(os.getenv("SERVER_PORT", "8756"))
+SERVER_URL = os.getenv("SERVER_URL", "10.156.221.98")
+WS_SCHEME = os.getenv("WS_SCHEME", "ws")
+URI = f"{WS_SCHEME}://{SERVER_URL}:{port}"
+TARGET_LAT = float(os.getenv("TARGET_LAT", "38.266285"))
+TARGET_LNG = float(os.getenv("TARGET_LNG", "140.855498"))
+JPEG_QUALITY = int(os.getenv("JPEG_QUALITY", "70"))  # 圧縮品質 (0-100)
 ENCODE_PARAM = [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY]
 
 bmx = BNO055.BNO055()

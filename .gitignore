@@ -1,0 +1,6 @@
+# Local-only server config
+server.env
+
+# Python bytecode
+__pycache__/
+*.pyc
