@@ -12,8 +12,8 @@ class detector:
         # 諸変数のイニシャライズ
         self.cone_ratio = 33 / 70  # コーンの縦横比
         self.ratio_thresh = 0.1  # 許容される誤差率
-        
-        self.detect_cone_flag = True # whether to detect cone. if False, use lores for only parachute detection.
+
+        self.detect_cone_flag = True  # whether to detect cone. if False, use lores for only parachute detection.
 
         self.input_img = None
         self.projected_img = None
@@ -26,12 +26,11 @@ class detector:
         self.is_detected = None
         self.is_reached = None
         self.picam2 = None  # camera obj.
-        
 
     def set_roi_img(self):
         # ROI(透過PNG/RGBA)から、alphaマスクでコーン画素だけを使ってHSヒストを作り、混合する
         rois = ["./libs/roi1.png", "./libs/roi2.png", "./libs/roi3.png"]
-        weights = [1.0, 1.0, 1.0]  # normal, far, near(noisy) など。必要なら調整
+        weights = [2.0, 1.0, 1.0]  # normal, far, near(noisy) など。必要なら調整
 
         alpha_thresh = 200  # 縁のアンチエイリアス混色を避けるなら高めが安定
         h_bins, s_bins = 180, 256  # いまの実装に合わせる（重いなら下のNOTE参照）
@@ -88,13 +87,19 @@ class detector:
         if self.picam2 is None:
             self.picam2 = Picamera2()
             cam_conf = self.picam2.create_preview_configuration(
-                main={"size": (640, 480), "format": "RGB888"}, # for precise cone detection
-                lores= {"size": (320, 240),  "format": "YUV420"}, # for parachute detection
-            ) # enforce 640x480 BGR format for OpenCV compatibility.
+                main={
+                    "size": (640, 480),
+                    "format": "RGB888",
+                },  # for precise cone detection
+                lores={
+                    "size": (320, 240),
+                    "format": "YUV420",
+                },  # for parachute detection
+            )  # enforce 640x480 BGR format for OpenCV compatibility.
             self.picam2.configure(cam_conf)
             self.picam2.start()
             print("camera configured")
-        
+
         if self.detect_cone_flag:
             self.input_img = cv2.blur(self.picam2.capture_array("main"), (8, 8))
         else:

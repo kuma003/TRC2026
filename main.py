@@ -13,7 +13,7 @@ import RPi.GPIO as GPIO
 from libs import BNO055
 from libs import BMP085
 from libs.micropyGPS import MicropyGPS
-from libs import detect_corn as dc
+from libs import detector as dc
 from picamera2 import Picamera2
 
 # import matplotlib.pyplot as plt
@@ -335,12 +335,17 @@ def calibration():  # calibrate BMX raw data
             print("calibBias", calibBias, "calibRange", calibRange)
             time.sleep(1)
 
+
 def calcDistanceAngle():  # 距離・角度計算関数
     global distance
     global angle
 
     EARTH_RADIUS = 6378137.0
-    dx = math.radians(TARGET_LNG - lng) * EARTH_RADIUS * math.cos(math.radians(TARGET_LAT))
+    dx = (
+        math.radians(TARGET_LNG - lng)
+        * EARTH_RADIUS
+        * math.cos(math.radians(TARGET_LAT))
+    )
     dy = math.radians(TARGET_LAT - lat) * EARTH_RADIUS
     distance = math.hypot(dx, dy)
     angle = 90 - math.degrees(math.atan2(dy, dx))
@@ -351,7 +356,7 @@ def calcAzimuth():  # 方位角計算用関数
     global azimuth
 
     azimuth = 90 - math.degrees(math.atan2(mag[1], mag[0]))
-    azimuth *= -1 # 上のazimuthはCanSatからみた北の方位
+    azimuth *= -1  # 上のazimuthはCanSatからみた北の方位
     azimuth %= 360
 
 
@@ -371,7 +376,11 @@ def GPS_thread():  # GPSモジュールを読み、GPSオブジェクトを更�
             s.reset_input_buffer()
         if sentence[0] != "$":  # 先頭が'$'でなければ捨てる
             continue
-        for x in sentence:  # 読んだ文字列を解析してGPSオブジェクトにデーターを追加、更新する
+        for (
+            x
+        ) in (
+            sentence
+        ):  # 読んだ文字列を解析してGPSオブジェクトにデーターを追加、更新する
             gps.update(x)
         lat = gps.latitude[0]
         lng = gps.longitude[0]
