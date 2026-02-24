@@ -88,6 +88,7 @@ def main():
     time_searching_cone = 0
     time_camera_start = 0
     time_camera_detecting = 0
+    time_phase2 = 0
 
     GPIO.setwarnings(False)
     Setup()
@@ -125,12 +126,17 @@ def main():
             detector.detect()
 
             if detector.is_parachute_detected:
-                print("parachute detected.")
-                time.sleep(
-                    10
-                )  # run reversely for 10 seconds to get away from the parachute
-
-            phase = 3
+                if time_phase2 == 0:
+                    print("parachute detected.")
+                    time_phase2 = time.time()
+                else:
+                    if (
+                        time.time() - time_phase2 > 20
+                    ):  # something is wrong with the camera
+                        phase = 3
+                # run reversely for 10 seconds to get away from the parachute
+            else:
+                phase = 3
 
         elif phase == 3:
             print("phase3 : GPS start")
@@ -519,6 +525,8 @@ def set_direction():  # -180<direction<180  #rover move to right while direction
 
     elif phase == 2:  # キャリブレーション
         # direction = -400.0  # right
+        if detector is None or detector.parachute_direction is None:
+            pass
         if detector.parachute_direction > 0.5:
             direction = +180
         else:
