@@ -27,7 +27,6 @@ class detector:
         self.is_reached = None
 
         # parachute detection outputs (new)
-        self.parachute_input_img = None
         self.parachute_projected_img = None
         self.parachute_binarized_img = None
         self.parachute_detected = None
@@ -119,13 +118,13 @@ class detector:
             self.picam2.start()
             print("camera configured")
 
-        lores_img = cv2.cvtColor(self.picam2.capture_array("lores"), cv2.COLOR_YUV2BGR_NV12)
-        self.parachute_input_img = cv2.blur(lores_img, (8, 8))
-
         if self.detect_cone_flag:
             self.input_img = cv2.blur(self.picam2.capture_array("main"), (8, 8))
         else:
-            self.input_img = self.parachute_input_img
+            lores_img = cv2.cvtColor(
+                self.picam2.capture_array("lores"), cv2.COLOR_YUV2BGR_NV12
+            )
+            self.input_img = cv2.blur(lores_img, (8, 8))
 
     def detect_cone(self):
         self.__get_camera_img()
@@ -148,7 +147,7 @@ class detector:
         )
 
     def __parachute_back_projection(self):
-        img_hsv = cv2.cvtColor(self.parachute_input_img, cv2.COLOR_BGR2HSV)
+        img_hsv = cv2.cvtColor(self.input_img, cv2.COLOR_BGR2HSV)
         self.parachute_projected_img = cv2.calcBackProject(
             [img_hsv], [0, 1], self.__parachute_roi_hist, [0, 180, 0, 256], 1
         )
