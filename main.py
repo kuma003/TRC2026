@@ -123,7 +123,8 @@ def main():
         elif phase == 2:  # パラ回避フェーズ
             print("phase2 : parachute detection")
             detector.detect_cone_flag = False  # parachute detection
-            detector.detect()
+            if detector.is_parachute_detected is None:
+                detector.detect()
 
             if detector.is_parachute_detected:
                 if time_phase2 == 0:
