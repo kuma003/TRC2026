@@ -129,6 +129,7 @@ def main():
             print("angle: ", angle)
             print("azimuth", azimuth)
             print("direction", direction)
+
             if camera_failed == False:
                 if distance < 5.0:
                     phase = 4
@@ -396,7 +397,8 @@ def cone_detect():
     global cone_direction
     global cone_probability
 
-    detector.detect_cone()
+    detector.detect_cone_flag = True  # raise flag
+    detector.detect()
     try:
         cone_direction = 1 - detector.cone_direction
         cone_probability = detector.probability
@@ -510,6 +512,17 @@ def set_direction():  # -180<direction<180  #rover move to right while direction
         direction = -400.0  # right
 
     elif phase == 3:
+        detector.detect_cone_flag = False  # parachute detection
+        detector.detect()
+        if detector.is_parachute_detected:
+            print("parachute detected.")
+            # note that the direction is reversed to avert the parachute entanglement
+            if detector.parachute_direction > 0.5:
+                direction = +180
+            else:
+                direction = -180
+            return
+
         direction = azimuth - angle
         direction %= 360
         if direction > 180:

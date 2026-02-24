@@ -156,7 +156,7 @@ async def send_data():
         ) as e:
             print(f"Connection lost: {e}, retrying in 1 second...")
             await asyncio.sleep(1)
-        except Exception as e:
+             Exception as e:
             print(f"予期せぬエラーが発生しました: {e}")
             await asyncio.sleep(1)
 
@@ -195,7 +195,7 @@ def GPS_thread():  # GPSモジュールを読み、GPSオブジェクトを更�
 
 def detect_cone():
     global encoded_img_txt
-    detector.detect_cone()
+    detector.detect()
     _, buffer = cv2.imencode(".jpg", detector.input_img, ENCODE_PARAM)
     encoded_img_txt = base64.b64encode(buffer).decode("utf-8")
     # print(cone_direction, cone_probability, cone_occupancy)

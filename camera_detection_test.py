@@ -8,7 +8,7 @@ detector.set_roi_img()
 
 try:
     while True:
-        detector.detect_cone()
+        detector.detect()
         if detector.is_detected:
             print(f"cone direction: {detector.cone_direction}")
         if detector.is_parachute_detected:

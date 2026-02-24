@@ -71,11 +71,15 @@ class detector:
 
         mixed_sum = float(mixed.sum())
         if mixed_sum <= 0:
-            raise RuntimeError("Mixed histogram is empty. Check alpha masks / threshold.")
+            raise RuntimeError(
+                "Mixed histogram is empty. Check alpha masks / threshold."
+            )
         mixed /= mixed_sum
 
         self.__cone_roi_hist = mixed
-        cv2.normalize(self.__cone_roi_hist, self.__cone_roi_hist, 0, 255, cv2.NORM_MINMAX)
+        cv2.normalize(
+            self.__cone_roi_hist, self.__cone_roi_hist, 0, 255, cv2.NORM_MINMAX
+        )
 
         parachute_roi = cv2.imread("./libs/parachute_roi.png", cv2.IMREAD_UNCHANGED)
         if parachute_roi is None:
@@ -126,19 +130,22 @@ class detector:
             )
             self.input_img = cv2.blur(lores_img, (8, 8))
 
-    def detect_cone(self):
+    def detect(self):
         self.__get_camera_img()
-        self.__detect_parachute()  # parachute detection is always executed
 
-        if not self.detect_cone_flag:
-            self._clear_cone_result()
-            self.is_detected = False
-            self.is_reached = False
+        if self.detect_cone_flag:
+            self._clear_parachute_result()
+            self.is_parachute_detected = False
+            self.__back_projection()
+            self.__binarization()
+            self.__find_cone_centroid()
             return
 
-        self.__back_projection()
-        self.__binarization()
-        self.__find_cone_centroid()
+        self.__detect_parachute()
+        self._clear_cone_result()
+        self.is_detected = False
+        self.is_reached = False
+        return
 
     def __back_projection(self):
         img_hsv = cv2.cvtColor(self.input_img, cv2.COLOR_BGR2HSV)
@@ -172,7 +179,10 @@ class detector:
         self.__find_parachute_centroid()
 
     def __find_parachute_centroid(self):
-        img_size = self.parachute_binarized_img.shape[0] * self.parachute_binarized_img.shape[1]
+        img_size = (
+            self.parachute_binarized_img.shape[0]
+            * self.parachute_binarized_img.shape[1]
+        )
         nlabels, _, stats, centroids = cv2.connectedComponentsWithStats(
             self.parachute_binarized_img.astype(np.uint8)
         )
@@ -187,7 +197,9 @@ class detector:
 
         max_occupancy = np.max(occupancies)
         idx_parachute = (
-            np.argmax(occupancies) if max_occupancy > self._min_component_occupancy else -1
+            np.argmax(occupancies)
+            if max_occupancy > self._min_component_occupancy
+            else -1
         )
         self.is_parachute_detected = idx_parachute >= 0
         if not self.is_parachute_detected:
@@ -219,7 +231,11 @@ class detector:
         )
         occupancies = stats[:, cv2.CC_STAT_AREA] / img_size
         max_occupancy = np.max(occupancies)
-        idx_cone = np.argmax(occupancies) if max_occupancy > self._min_component_occupancy else -1
+        idx_cone = (
+            np.argmax(occupancies)
+            if max_occupancy > self._min_component_occupancy
+            else -1
+        )
 
         self.is_detected = idx_cone >= 0
 
