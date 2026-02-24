@@ -9,18 +9,16 @@ detector.set_roi_img()
 try:
     while True:
         detector.detect_cone()
-        cone_direction = detector.cone_direction
-        cone_probability = detector.probability
-        cone_occupancy = detector.occupancy
-        print(cone_direction, cone_probability, cone_occupancy)
         if detector.is_detected:
-            print(f"occupied: {detector.occupancy}")
+            print(f"cone direction: {detector.cone_direction}")
+        if detector.is_parachute_detected:
+            print(f"parachute direction: {detector.parachute_direction}")
 
         if detector.is_reached:
             print("--------------------------------")
             print("cone reached!!")
             print("--------------------------------")
-        time.sleep(0.1)
+        time.sleep(0.5)
 except Exception as e:
     print(e)
     exit(-1)
