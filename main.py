@@ -527,7 +527,7 @@ def set_direction():  # -180<direction<180  #rover move to right while direction
     elif phase == 2:  # キャリブレーション
         # direction = -400.0  # right
         if detector is None or detector.parachute_direction is None:
-            pass
+            direction = 360
         if detector.parachute_direction > 0.5:
             direction = +180
         else:
