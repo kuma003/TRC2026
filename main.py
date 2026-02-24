@@ -126,10 +126,6 @@ def main():
 
             if detector.is_parachute_detected:
                 print("parachute detected.")
-                if detector.parachute_direction > 0.5:
-                    direction = +180
-                else:
-                    direction = -180
                 time.sleep(
                     10
                 )  # run reversely for 10 seconds to get away from the parachute
@@ -522,7 +518,11 @@ def set_direction():  # -180<direction<180  #rover move to right while direction
         direction = 360
 
     elif phase == 2:  # キャリブレーション
-        direction = -400.0  # right
+        # direction = -400.0  # right
+        if detector.parachute_direction > 0.5:
+            direction = +180
+        else:
+            direction = -180
 
     elif phase == 3:
         direction = azimuth - angle
