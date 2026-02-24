@@ -131,11 +131,9 @@ def main():
                     print("parachute detected.")
                     time_phase2 = time.time()
                 else:
-                    if (
-                        time.time() - time_phase2 > 20
-                    ):  # something is wrong with the camera
+                    # run reversely for 3 seconds to get away from the parachute
+                    if time.time() - time_phase2 > 3:
                         phase = 3
-                # run reversely for 10 seconds to get away from the parachute
             else:
                 phase = 3
 
@@ -160,9 +158,8 @@ def main():
                 time_start_searching_cone = time.time()
             elif searching_Flag == True:
                 time_searching_cone = time.time()
-                if (
-                    time_searching_cone - time_start_searching_cone >= 20
-                ):  # something is wrong with the camera
+                # something is wrong with the camera
+                if time_searching_cone - time_start_searching_cone >= 10:
                     camera_failed = True
                     searching_Flag = False
                     phase = 3  # restart GPS mode and get closer
@@ -528,7 +525,7 @@ def set_direction():  # -180<direction<180  #rover move to right while direction
         # direction = -400.0  # right
         if detector is None or detector.parachute_direction is None:
             direction = 360
-        if detector.parachute_direction > 0.5:
+        elif detector.parachute_direction > 0.5:
             direction = +180
         else:
             direction = -180
