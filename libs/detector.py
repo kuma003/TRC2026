@@ -5,16 +5,16 @@ from picamera2 import Picamera2  # camera
 
 
 class detector:
-    # コンストラクタ
-    # 引数
-    #   roi : 対象領域
     def __init__(self):
-        # 諸変数のイニシャライズ
-        self.cone_ratio = 33 / 70  # コーンの縦横比
-        self.ratio_thresh = 0.1  # 許容される誤差率
+        self.cone_ratio = 33 / 70
+        self.ratio_thresh = 0.1
+        self.detect_cone_flag = True  # if False, only parachute detection is used
+        self._min_component_occupancy = 0.001
+        self._cone_reached_occupancy = 0.15
+        self._cone_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (25, 25))
+        self._parachute_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (11, 11))
 
-        self.detect_cone_flag = True  # whether to detect cone. if False, use lores for only parachute detection.
-
+        # cone detection outputs (existing API)
         self.input_img = None
         self.projected_img = None
         self.binarized_img = None
@@ -25,16 +25,24 @@ class detector:
         self.occupancy = None
         self.is_detected = None
         self.is_reached = None
-        self.picam2 = None  # camera obj.
+
+        # parachute detection outputs (new)
+        self.parachute_input_img = None
+        self.parachute_projected_img = None
+        self.parachute_binarized_img = None
+        self.parachute_detected = None
+        self.parachute_centroids = None
+        self.parachute_direction = None
+        self.is_parachute_detected = None
+
+        self.picam2 = None
 
     def set_roi_img(self):
-        # ROI(透過PNG/RGBA)から、alphaマスクでコーン画素だけを使ってHSヒストを作り、混合する
         rois = ["./libs/roi1.png", "./libs/roi2.png", "./libs/roi3.png"]
-        weights = [2.0, 1.0, 1.0]  # normal, far, near(noisy) など。必要なら調整
+        weights = [2.0, 1.0, 1.0]
 
-        alpha_thresh = 200  # 縁のアンチエイリアス混色を避けるなら高めが安定
-        h_bins, s_bins = 180, 256  # いまの実装に合わせる（重いなら下のNOTE参照）
-
+        alpha_thresh = 200
+        h_bins, s_bins = 180, 256
         mixed = np.zeros((h_bins, s_bins), np.float32)
 
         for path, w in zip(rois, weights):
@@ -44,150 +52,202 @@ class detector:
             if rgba.ndim != 3 or rgba.shape[2] != 4:
                 raise ValueError(f"ROI must be RGBA (HxWx4). got: shape={rgba.shape}")
 
-            # OpenCVのimreadはPNGをBGRAで読むので、BGRAとして扱うのが安全
             bgr = cv2.cvtColor(rgba, cv2.COLOR_BGRA2BGR)
             alpha = rgba[:, :, 3]
-
             mask = (alpha >= alpha_thresh).astype(np.uint8) * 255
-
             hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
 
             hist = cv2.calcHist(
                 images=[hsv],
-                channels=[0, 1],  # H,S
+                channels=[0, 1],
                 mask=mask,
                 histSize=[h_bins, s_bins],
                 ranges=[0, 180, 0, 256],
             ).astype(np.float32)
 
-            # 確率化（sum=1）してから混合（これやるとROIの面積差に引っ張られにくい）
             s = float(hist.sum())
             if s > 0:
                 hist /= s
                 mixed += float(w) * hist
 
-        # 混合確率の正規化
         mixed_sum = float(mixed.sum())
         if mixed_sum <= 0:
-            raise RuntimeError(
-                "Mixed histogram is empty. Check alpha masks / threshold."
-            )
+            raise RuntimeError("Mixed histogram is empty. Check alpha masks / threshold.")
         mixed /= mixed_sum
 
-        # back projection用にスケールを整える（0..255）
-        self.__roi_hist = mixed
-        cv2.normalize(self.__roi_hist, self.__roi_hist, 0, 255, cv2.NORM_MINMAX)
+        self.__cone_roi_hist = mixed
+        cv2.normalize(self.__cone_roi_hist, self.__cone_roi_hist, 0, 255, cv2.NORM_MINMAX)
 
-    # コーンの縦横比 (横/縦) を設定
+        parachute_roi = cv2.imread("./libs/parachute_roi.png", cv2.IMREAD_UNCHANGED)
+        if parachute_roi is None:
+            raise FileNotFoundError("./libs/parachute_roi.png")
+        if parachute_roi.ndim != 3 or parachute_roi.shape[2] != 4:
+            raise ValueError(
+                f"Parachute ROI must be RGBA (HxWx4). got: shape={parachute_roi.shape}"
+            )
+
+        bgr = cv2.cvtColor(parachute_roi, cv2.COLOR_BGRA2BGR)
+        alpha = parachute_roi[:, :, 3]
+        mask = (alpha >= alpha_thresh).astype(np.uint8) * 255
+        hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
+        self.__parachute_roi_hist = cv2.calcHist(
+            images=[hsv],
+            channels=[0, 1],
+            mask=mask,
+            histSize=[h_bins, s_bins],
+            ranges=[0, 180, 0, 256],
+        ).astype(np.float32)
+        cv2.normalize(
+            self.__parachute_roi_hist,
+            self.__parachute_roi_hist,
+            0,
+            255,
+            cv2.NORM_MINMAX,
+        )
+
     def set_cone_ratio(self, ratio):
         self.cone_ratio = ratio
 
-    # get camera img
     def __get_camera_img(self):
         if self.picam2 is None:
             self.picam2 = Picamera2()
             cam_conf = self.picam2.create_preview_configuration(
-                main={
-                    "size": (640, 480),
-                    "format": "RGB888",
-                },  # for precise cone detection
-                lores={
-                    "size": (320, 240),
-                    "format": "YUV420",
-                },  # for parachute detection
-            )  # enforce 640x480 BGR format for OpenCV compatibility.
+                main={"size": (640, 480), "format": "RGB888"},
+                lores={"size": (320, 240), "format": "YUV420"},
+            )
             self.picam2.configure(cam_conf)
             self.picam2.start()
             print("camera configured")
 
+        lores_img = cv2.cvtColor(self.picam2.capture_array("lores"), cv2.COLOR_YUV2BGR_NV12)
+        self.parachute_input_img = cv2.blur(lores_img, (8, 8))
+
         if self.detect_cone_flag:
             self.input_img = cv2.blur(self.picam2.capture_array("main"), (8, 8))
         else:
-            self.input_img = cv2.blur(self.picam2.capture_array("lores"), (8, 8))
+            self.input_img = self.parachute_input_img
 
-    # 検出
     def detect_cone(self):
         self.__get_camera_img()
-        self.__back_projection()
-        self.__binarization()
-        self.__find_cone_centroid()
+        self.__detect_parachute()  # parachute detection is always executed
 
-    # 逆投影法を用いて, 興味領域のヒストグラムにマッチする領域を抽出
-    def __back_projection(self):
-        img_hsv = cv2.cvtColor(self.input_img, cv2.COLOR_BGR2HSV)
-        self.projected_img = cv2.calcBackProject(
-            [img_hsv], [0, 1], self.__roi_hist, [0, 180, 0, 256], 1
-        )
-
-    # 二値化・モルフォロジー変換 (クロージング)
-    # gray : 入力画像 (グレースケール)
-    def __binarization(self):
-        ret, th = cv2.threshold(
-            self.projected_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
-        )  # 大津の二値化
-        self.binarized_img = cv2.morphologyEx(
-            th, cv2.MORPH_DILATE, cv2.getStructuringElement(cv2.MORPH_RECT, (25, 25))
-        )  # モルフォロジー変換
-
-    # ラベリング処理によって, 特定の比の長方形 (i.e. カラーコーン) を探し, その重心と確からしさを返す
-    # 確からしさ abs(長方形の縦横比 - コーンの縦横比) でとりあえず定義. 小さいほど良い
-    def __find_cone_centroid(self):
-        imgSize = len(self.binarized_img) * len(self.binarized_img[0])
-        nlabels, labels_img, stats, centroids = cv2.connectedComponentsWithStats(
-            self.binarized_img.astype(np.uint8)
-        )  # バウンディングボックス取得
-        if nlabels == 1:
+        if not self.detect_cone_flag:
+            self._clear_cone_result()
             self.is_detected = False
             self.is_reached = False
             return
 
-        labels_img = labels_img[1:, :]
+        self.__back_projection()
+        self.__binarization()
+        self.__find_cone_centroid()
+
+    def __back_projection(self):
+        img_hsv = cv2.cvtColor(self.input_img, cv2.COLOR_BGR2HSV)
+        self.projected_img = cv2.calcBackProject(
+            [img_hsv], [0, 1], self.__cone_roi_hist, [0, 180, 0, 256], 1
+        )
+
+    def __parachute_back_projection(self):
+        img_hsv = cv2.cvtColor(self.parachute_input_img, cv2.COLOR_BGR2HSV)
+        self.parachute_projected_img = cv2.calcBackProject(
+            [img_hsv], [0, 1], self.__parachute_roi_hist, [0, 180, 0, 256], 1
+        )
+
+    def __binarization(self):
+        _, th = cv2.threshold(
+            self.projected_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+        )
+        self.binarized_img = cv2.morphologyEx(th, cv2.MORPH_DILATE, self._cone_kernel)
+
+    def __parachute_binarization(self):
+        _, th = cv2.threshold(
+            self.parachute_projected_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+        )
+        self.parachute_binarized_img = cv2.morphologyEx(
+            th, cv2.MORPH_DILATE, self._parachute_kernel
+        )
+
+    def __detect_parachute(self):
+        self.__parachute_back_projection()
+        self.__parachute_binarization()
+        self.__find_parachute_centroid()
+
+    def __find_parachute_centroid(self):
+        img_size = self.parachute_binarized_img.shape[0] * self.parachute_binarized_img.shape[1]
+        nlabels, _, stats, centroids = cv2.connectedComponentsWithStats(
+            self.parachute_binarized_img.astype(np.uint8)
+        )
+        if nlabels == 1:
+            self._clear_parachute_result()
+            self.is_parachute_detected = False
+            return
+
+        stats = stats[1:, :]
+        centroids = centroids[1:, :]
+        occupancies = stats[:, cv2.CC_STAT_AREA] / img_size
+
+        max_occupancy = np.max(occupancies)
+        idx_parachute = (
+            np.argmax(occupancies) if max_occupancy > self._min_component_occupancy else -1
+        )
+        self.is_parachute_detected = idx_parachute >= 0
+        if not self.is_parachute_detected:
+            self._clear_parachute_result()
+            return
+
+        self.parachute_detected = stats[idx_parachute, :]
+        self.parachute_centroids = centroids[idx_parachute]
+        self.parachute_direction = (
+            self.parachute_centroids[0] / self.parachute_binarized_img.shape[1]
+        )
+
+    def __find_cone_centroid(self):
+        img_size = self.binarized_img.shape[0] * self.binarized_img.shape[1]
+        nlabels, _, stats, centroids = cv2.connectedComponentsWithStats(
+            self.binarized_img.astype(np.uint8)
+        )
+        if nlabels == 1:
+            self._clear_cone_result()
+            self.is_detected = False
+            self.is_reached = False
+            return
+
         stats = stats[1:, :]
         centroids = centroids[1:, :]
 
         probabilities = np.abs(
             stats[:, cv2.CC_STAT_WIDTH] / stats[:, cv2.CC_STAT_HEIGHT] - self.cone_ratio
-        )  # 値が0に近いほどコーンらしい形状 (>=0)
-        self.is_detected = False
-        idx_cone = -1  # コーンの要素番号
-
-        occupacies = stats[:, cv2.CC_STAT_AREA] / imgSize
-
-        idx_cone = (
-            np.argmax(occupacies) if np.max(occupacies) > 0.001 else -1
-        )  # 0.001よりも大きい画像が対象
+        )
+        occupancies = stats[:, cv2.CC_STAT_AREA] / img_size
+        max_occupancy = np.max(occupancies)
+        idx_cone = np.argmax(occupancies) if max_occupancy > self._min_component_occupancy else -1
 
         self.is_detected = idx_cone >= 0
 
-        if np.max(occupacies) > 0.15:
+        if max_occupancy > self._cone_reached_occupancy:
             self.is_reached = True
             self.picam2.capture_file("./log/capture_img.png")
         else:
             self.is_reached = False
 
-        # # 検出された領域をそれぞれ検討 (先頭は背景全体なのでパス)
-        # for idx in range(1, nlabels):
-        #     if (
-        #         stats[idx, cv2.CC_STAT_AREA] < imgSize / 20000
-        #     ):  # 極度に面積が小さいものはノイズと見做し不正 (閾値は要調整)
-        #         probabilities[idx] = error_val
-        #         continue
-        #     self.is_detected = True
-        #     if (
-        #         stats[idx, cv2.CC_STAT_AREA] > imgSize / 5
-        #     ):  # 入力画像のうち十分な領域を占めるなら
-        #         idx_cone = idx
-        #         self.is_reached = True
-        #         self.picam2.capture_file("./log/capture_img.png")
-        # if not idx_cone > 0:  # もし見つからなかったら
-        #     self.is_reached = False
-        #     idx_cone = np.argmin(probabilities)  # 最も形の領域を探す
+        if not self.is_detected:
+            self._clear_cone_result()
+            return
 
-        # 見つかったコーンの諸情報を入力
-        self.occupancy = occupacies[idx_cone]
+        self.occupancy = occupancies[idx_cone]
         self.detected = stats[idx_cone, :]
         self.centroids = centroids[idx_cone]
         self.probability = probabilities[idx_cone]
-        self.cone_direction = (
-            self.centroids[0] / self.binarized_img.shape[1]
-        )  # right : 1, left : 0
+        self.cone_direction = self.centroids[0] / self.binarized_img.shape[1]
+
+    def _clear_cone_result(self):
+        self.detected = None
+        self.probability = None
+        self.centroids = None
+        self.cone_direction = None
+        self.occupancy = None
+
+    def _clear_parachute_result(self):
+        self.parachute_detected = None
+        self.parachute_centroids = None
+        self.parachute_direction = None
