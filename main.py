@@ -119,9 +119,21 @@ def main():
             print("done")
             phase = 2
 
-        elif phase == 2:  # キャリブレーション
-            print("phase2 : calibration start")
-            # calibration()
+        elif phase == 2:  # パラ回避フェーズ
+            print("phase2 : parachute detection")
+            detector.detect_cone_flag = False  # parachute detection
+            detector.detect()
+
+            if detector.is_parachute_detected:
+                print("parachute detected.")
+                if detector.parachute_direction > 0.5:
+                    direction = +180
+                else:
+                    direction = -180
+                time.sleep(
+                    10
+                )  # run reversely for 10 seconds to get away from the parachute
+
             phase = 3
 
         elif phase == 3:
@@ -497,6 +509,7 @@ def moveMotor_thread():
 
 
 def set_direction():  # -180<direction<180  #rover move to right while direction > 0
+    global detector
     global direction
     global phase
     global object_distance_Flag
@@ -512,17 +525,6 @@ def set_direction():  # -180<direction<180  #rover move to right while direction
         direction = -400.0  # right
 
     elif phase == 3:
-        detector.detect_cone_flag = False  # parachute detection
-        detector.detect()
-        if detector.is_parachute_detected:
-            print("parachute detected.")
-            # note that the direction is reversed to avert the parachute entanglement
-            if detector.parachute_direction > 0.5:
-                direction = +180
-            else:
-                direction = -180
-            return
-
         direction = azimuth - angle
         direction %= 360
         if direction > 180:
