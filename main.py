@@ -65,7 +65,6 @@ restTime = 0.0
 diff_rot = 1
 upside_down_Flag = 0  # judge the upside down by acc(bmx)
 stuck_GPS_Flag = 0  # judge the stuck by GPS : no obstacle distance_Flag = 0, if CanSat stucked distance_Flag = 1
-camera_available_Flag = 0  # judge the camera is available or not : camera_available_Flag = 0, if camera failed, camera_available_Flag = 1
 
 bmx = BNO055.BNO055()
 bmp = BMP085.BMP085()
@@ -124,9 +123,13 @@ def main():
             print("phase2 : parachute detection")
             detector.detect_cone_flag = False  # parachute detection
             if detector.is_parachute_detected is None:
-                detector.detect()
+                try:
+                    detector.detect()
+                except Exception as e:
+                    print("Camera detection failed: ", e)
+                    camera_failed = True
 
-            if detector.is_parachute_detected:
+            if not camera_failed and detector.is_parachute_detected:
                 if time_phase2 == 0:
                     print("parachute detected.")
                     time_phase2 = time.time()
@@ -152,7 +155,13 @@ def main():
 
         elif phase == 4:
             print("phase4 : camera start")
-            cone_detect()
+            try:
+                cone_detect()
+            except Exception as e:
+                print("Camera detection failed: ", e)
+                camera_failed = True
+                phase = 3
+                continue  # skip the rest of phase 4 and go back to phase 3
             if searching_Flag == False:
                 searching_Flag = True
                 time_start_searching_cone = time.time()
@@ -171,7 +180,14 @@ def main():
             time_camera_start = time.time()
             count_cone_lost = 0
             while True:
-                cone_detect()
+                try:
+                    cone_detect()
+                except Exception as e:
+                    print("Camera detection failed: ", e)
+                    camera_failed = True
+                    phase = 3
+                    break
+
                 time_camera_detecting = time.time()
 
                 if time_camera_detecting - time_camera_start >= 10:
