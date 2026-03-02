@@ -65,7 +65,7 @@ restTime = 0.0
 diff_rot = 1
 upside_down_Flag = 0  # judge the upside down by acc(bmx)
 stuck_GPS_Flag = 0  # judge the stuck by GPS : no obstacle distance_Flag = 0, if CanSat stucked distance_Flag = 1
-
+camera_available_Flag = 0  # judge the camera is available or not : camera_available_Flag = 0, if camera failed, camera_available_Flag = 1
 
 bmx = BNO055.BNO055()
 bmp = BMP085.BMP085()
@@ -101,7 +101,7 @@ def main():
             while True:
                 getBmxData()
                 # print(fall)
-                if fall > 25:
+                if fall > 30:
                     print("para released")
                     time.sleep(10)
                     break
@@ -109,7 +109,7 @@ def main():
                     print("failed to detect falling")
                     break
                 # time.sleep(0.1)
-            phase = 3  # TODO: skip parachute separation. must be fixed later. change to phase 1 after test.
+            phase = 2  # TODO: skip parachute separation. must be fixed later. change to phase 1 after test.
 
         elif phase == 1:  # パラ分離
             print("phase1 : remove para")
@@ -491,7 +491,12 @@ def moveMotor_thread():
             motor_right_b.ChangeDutyCycle(0)
             motor_left_f.ChangeDutyCycle(40 * slow)
             motor_left_b.ChangeDutyCycle(0)
-        elif direction == -400.0:  # rotate
+        elif direction == 400:  # counterclockwise rotate
+            motor_right_f.ChangeDutyCycle(50)
+            motor_right_b.ChangeDutyCycle(0)
+            motor_left_f.ChangeDutyCycle(15)
+            motor_left_b.ChangeDutyCycle(0)
+        elif direction == -400.0:  # clockwise rotate
             motor_right_f.ChangeDutyCycle(15)
             motor_right_b.ChangeDutyCycle(0)
             motor_left_f.ChangeDutyCycle(50)
@@ -526,9 +531,9 @@ def set_direction():  # -180<direction<180  #rover move to right while direction
         if detector is None or detector.parachute_direction is None:
             direction = 360
         elif detector.parachute_direction > 0.5:
-            direction = +180
+            direction = +400  # counterclockwise rotate
         else:
-            direction = -180
+            direction = -400  # clockwise rotate
 
     elif phase == 3:
         direction = azimuth - angle
