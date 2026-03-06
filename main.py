@@ -102,7 +102,7 @@ def main():
             while True:
                 getBmxData()
                 # print(fall)
-                if fall > 30:
+                if fall > 25:
                     fall_count += 1
                     print("fall_count", fall_count)
                     if fall_count >= 2:
