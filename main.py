@@ -102,17 +102,17 @@ def main():
             while True:
                 getBmxData()
                 # print(fall)
-                if fall > 25:
+                if fall > 30:
                     fall_count += 1
                     print("fall_count", fall_count)
-                    if fall_count >= 5:
+                    if fall_count >= 2:
                         print("para released")
                         time.sleep(10)
                         break
                 if time.time() - start > 5 * 60:  # ********  fix later **********
                     print("failed to detect falling")
                     break
-                # time.sleep(0.1)
+                time.sleep(0.1)
             phase = 1
 
         elif phase == 1:  # パラ分離
