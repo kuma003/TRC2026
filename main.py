@@ -104,6 +104,7 @@ def main():
                 # print(fall)
                 if fall > 25:
                     fall_count += 1
+                    print("fall_count", fall_count)
                     if fall_count >= 5:
                         print("para released")
                         time.sleep(10)
