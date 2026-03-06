@@ -156,7 +156,7 @@ async def send_data():
         ) as e:
             print(f"Connection lost: {e}, retrying in 1 second...")
             await asyncio.sleep(1)
-             Exception as e:
+        except Exception as e:
             print(f"予期せぬエラーが発生しました: {e}")
             await asyncio.sleep(1)
 
