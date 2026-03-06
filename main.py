@@ -27,7 +27,7 @@ CALIBRATION_MILLITIME = 20 * 1000
 TARGET_LAT = 38.260871333333334  # Goal座標
 TARGET_LNG = 140.85392616666667
 TARGET_ALTITUDE = 20
-DATA_SAMPLING_RATE = 0.00001
+DATA_SAMPLING_RATE = 0.01
 ALTITUDE_CONST1 = 30
 ALTITUDE_CONST2 = 5
 HIGH = 1
@@ -112,7 +112,7 @@ def main():
                 if time.time() - start > 5 * 60:  # ********  fix later **********
                     print("failed to detect falling")
                     break
-                time.sleep(0.1)
+                time.sleep(0.01)
             phase = 1
 
         elif phase == 1:  # パラ分離
@@ -218,7 +218,7 @@ def main():
         elif phase == 6:
             print("phase6 : Goal")
             time.sleep(10000)
-        time.sleep(0.1)
+        time.sleep(0.01)
 
 
 def currentMilliTime():
