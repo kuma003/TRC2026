@@ -139,9 +139,14 @@ def main():
                     print("parachute detected.")
                     time_phase2 = time.time()
                 else:
-                    # run reversely for 3 seconds to get away from the parachute
-                    if time.time() - time_phase2 > 3:
-                        phase = 3
+                    # run reversely for 0.1 seconds to get away from the parachute
+                    if time.time() - time_phase2 > 0.1:
+                        detector.detect()  # update parachute detection result
+                        # if faild to get away from the parachute
+                        if detector.is_parachute_detected:
+                            time_phase2 = 0  # try again
+                        else:
+                            phase = 3
             else:
                 phase = 3
 
@@ -200,6 +205,11 @@ def main():
                     if detector.is_detected == False:
                         count_cone_lost += 1
                         print("count_cone_lost", count_cone_lost)
+                    else:
+                        if count_cone_lost > 0:
+                            print("cone detected again")
+                        count_cone_lost = 0
+
                     if count_cone_lost >= 10:  # camera lost the cone for a long time
                         phase = 4  # restart at phase4
                         break
@@ -214,6 +224,7 @@ def main():
                     print("reached")
                     phase = 6
                     break
+                time.sleep(0.01)
 
         elif phase == 6:
             print("phase6 : Goal")
@@ -260,6 +271,9 @@ def Setup():
             ]
         )
 
+    detector = dc.detector()
+    detector.set_roi_img()
+
     getThread = threading.Thread(target=moveMotor_thread, args=())
     getThread.daemon = True
     getThread.start()
@@ -271,9 +285,6 @@ def Setup():
     gpsThread = threading.Thread(target=GPS_thread, args=())
     gpsThread.daemon = True
     gpsThread.start()
-
-    detector = dc.detector()
-    detector.set_roi_img()
 
     print("Setup OK")
 
