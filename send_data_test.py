@@ -82,15 +82,15 @@ def get_BMX055_data():
         acc = bmx.getAcc()
         gyro = bmx.getGyro()
         mag = bmx.getMag()
-        for a in acc:
-            if abs(a) > 250:
-                a = 0.0
-        for g in gyro:
-            if abs(g) > 1500:
-                g = 0.0
-        for m in mag:
-            if abs(m) > 1500:
-                m = 0.0
+        for i in range(len(acc)):
+            if abs(acc[i]) > 250:
+                acc[i] = 0.0
+        for i in range(len(gyro)):
+            if abs(gyro[i]) > 1500:
+                gyro[i] = 0.0
+        for i in range(len(mag)):
+            if abs(mag[i]) > 1500:
+                mag[i] = 0.0
     except IOError as e:
         print(f"I/O error({e.errno}): {e.strerror} was occurred")
         bmx.__del__()  # remove instance
