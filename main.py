@@ -286,6 +286,15 @@ def getBmxData():  # get BMX data
     acc = bmx.getAcc()
     gyro = bmx.getGyro()
     mag = bmx.getMag()
+    for i in range(len(acc)):
+        if abs(acc[i]) > 250:
+            acc[i] = 0.0
+    for i in range(len(gyro)):
+        if abs(gyro[i]) > 1500:
+            gyro[i] = 0.0
+    for i in range(len(mag)):
+        if abs(mag[i]) > 1500:
+            mag[i] = 0.0
     # mag[1] = mag[1]
     # mag[2] = mag[2]
     fall = math.sqrt(acc[0] * acc[0] + acc[1] * acc[1] + acc[2] * acc[2])
