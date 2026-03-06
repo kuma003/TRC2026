@@ -33,7 +33,7 @@ ALTITUDE_CONST2 = 5
 HIGH = 1
 LOW = 0
 # Pin number
-heating_wire = 10
+heating_wire = 26
 M1A = 13  # Motor
 M1B = 19
 M4A = 6
@@ -88,6 +88,8 @@ def main():
     time_camera_start = 0
     time_camera_detecting = 0
     time_phase2 = 0
+    # counter
+    fall_count = 0
 
     GPIO.setwarnings(False)
     Setup()
@@ -100,15 +102,17 @@ def main():
             while True:
                 getBmxData()
                 # print(fall)
-                if fall > 30:
-                    print("para released")
-                    time.sleep(10)
+                if fall > 25:
+                    fall_count += 1
+                    if fall_count >= 5:
+                        print("para released")
+                        time.sleep(10)
                     break
                 if time.time() - start > 5 * 60:  # ********  fix later **********
                     print("failed to detect falling")
                     break
                 # time.sleep(0.1)
-            phase = 2  # TODO: skip parachute separation. must be fixed later. change to phase 1 after test.
+            phase = 1
 
         elif phase == 1:  # パラ分離
             print("phase1 : remove para")
@@ -168,11 +172,12 @@ def main():
             elif searching_Flag == True:
                 time_searching_cone = time.time()
                 # something is wrong with the camera
-                if time_searching_cone - time_start_searching_cone >= 10:
+                if time_searching_cone - time_start_searching_cone >= 20:
                     camera_failed = True
                     searching_Flag = False
                     phase = 3  # restart GPS mode and get closer
             if cone_probability < 1:
+                searching_Flag = False
                 phase = 5
 
         elif phase == 5:

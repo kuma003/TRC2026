@@ -1,7 +1,7 @@
 import RPi.GPIO as GPIO
 import time
 
-heating_wire = 10
+heating_wire = 26
 print("start")
 
 GPIO.setmode(GPIO.BCM)
