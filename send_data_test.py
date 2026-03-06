@@ -146,7 +146,7 @@ async def send_data():
                     except Exception as e:
                         print(f"データ送信中にエラー発生: {e}")
                         break  # 内部ループを抜ける
-                    await asyncio.sleep(0.00001)  # 非同期で待機
+                    await asyncio.sleep(0.1)  # 非同期で待機
         except websockets.exceptions.ConnectionClosedOK:
             print("接続が正常に閉じられました。1秒後に再接続します...")
             await asyncio.sleep(1)
