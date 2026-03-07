@@ -105,11 +105,11 @@ def main():
                 if fall > 25:
                     fall_count += 1
                     print("fall_count", fall_count)
-                    if fall_count >= 5:
+                    if fall_count >= 8:
                         print("para released")
                         time.sleep(10)
                         break
-                if time.time() - start > 5 * 60:  # ********  fix later **********
+                if time.time() - start > 7 * 60:  # ********  fix later **********
                     print("failed to detect falling")
                     break
                 time.sleep(0.01)
