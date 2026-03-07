@@ -119,7 +119,7 @@ def main():
             print("phase1 : remove para")
             print("fire")
             GPIO.output(heating_wire, GPIO.HIGH)
-            time.sleep(1)
+            time.sleep(7)
             GPIO.output(heating_wire, GPIO.LOW)
             print("done")
             phase = 2
@@ -140,7 +140,7 @@ def main():
                     time_phase2 = time.time()
                 else:
                     # run reversely for 0.1 seconds to get away from the parachute
-                    if time.time() - time_phase2 > 0.1:
+                    if time.time() - time_phase2 > 0.5:
                         phase = 3
             else:
                 phase = 3
