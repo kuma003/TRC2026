@@ -105,7 +105,7 @@ def main():
                 if fall > 25:
                     fall_count += 1
                     print("fall_count", fall_count)
-                    if fall_count >= 2:
+                    if fall_count >= 5:
                         print("para released")
                         time.sleep(10)
                         break
@@ -141,12 +141,7 @@ def main():
                 else:
                     # run reversely for 0.1 seconds to get away from the parachute
                     if time.time() - time_phase2 > 0.1:
-                        detector.detect()  # update parachute detection result
-                        # if faild to get away from the parachute
-                        if detector.is_parachute_detected:
-                            time_phase2 = 0  # try again
-                        else:
-                            phase = 3
+                        phase = 3
             else:
                 phase = 3
 
