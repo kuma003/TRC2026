@@ -173,7 +173,7 @@ def main():
             elif searching_Flag == True:
                 time_searching_cone = time.time()
                 # something is wrong with the camera
-                if time_searching_cone - time_start_searching_cone >= 20:
+                if time_searching_cone - time_start_searching_cone >= 40:
                     camera_failed = True
                     searching_Flag = False
                     phase = 3  # restart GPS mode and get closer
